@@ -1,4 +1,4 @@
-VERSION = ""
+VERSION = "v21.0 (11/11/21)"
 PREFIX = ","
 import time
 initstart = int(round(time.time() * 1000))
@@ -23,6 +23,9 @@ if not TOKEN:
     TOKEN = os.getenv("TOKEN")
     if TOKEN is None:
         TOKEN = input("Token: ")
+
+# init stuff
+
 
 intents = discord.Intents.default()
 intents.members = True
@@ -112,17 +115,39 @@ async def handle_error(ctx, error):
         await ctx.send(error, embed=help_embed('viewuser', PREFIX))
 
 @bot.command()
-async def viewword(ctx, word):
-    stats = tools.tracked_word_stats(' '.join(word).lower())
+async def viewword(ctx, *, word):
+    stats = tools.tracked_word_stats(word.lower())
     desc = []
+    if stats is None:
+        await ctx.send(f"Word '{word}' does not exist")
+        return
     for id_, count in stats.items():
         desc.append(f"{await tools.fullname_from_id(id_, bot)}: {count}")
     embed = discord.Embed(title="Tracking stats", description="\n".join(desc))
-    embed.set_author(name=' '.join(word).lower())
+    embed.add_field(name="Last mentioned", value=f"<t:{tools.get_word_timing(word)}:f>, <t:{tools.get_word_timing(word)}:R>")
+    embed.set_author(name=word.lower())
     await ctx.send(embed=embed)
 @viewword.error
 async def handle_error(ctx, error):
-    await ctx.send(error, embed=help_embed('viewuser', PREFIX))
+    await ctx.send(error, embed=help_embed('viewword', PREFIX))
+
+@bot.command(name='list')
+async def list_(ctx):
+    words = tools.tracked_get_words()
+    description = ""
+    for word in words:
+        description += f"**{word}** (last mentioned <t:{tools.get_word_timing(word)}:f>, <t:{tools.get_word_timing(word)}:R>)\n"
+    embed = discord.Embed(title="List of tracked words", description=description)
+    await ctx.send(embed=embed)
+@list_.error
+async def handle_error(ctx, error):
+    await ctx.send(error, embed=help_embed('list', PREFIX))
+
+@bot.event
+async def on_command_error(_, error):
+    if isinstance(error, commands.errors.CommandNotFound):
+        return
+    raise error
 
 @bot.event
 async def on_message(message: discord.Message):
@@ -134,46 +159,6 @@ async def on_message(message: discord.Message):
                 await message.add_reaction("👀")
             return
         await bot.process_commands(message)
-
-        '''@staticmethod
-            async def cmd_track():
-                if args.subcmd == "add":
-                    if not (message.author.guild_permissions.administrator or message.author.id == 644052617500164097):
-                        await message.channel.send("**You are not an admin or 7d**")
-                        return
-                    tools.tracked_add_word(' '.join(args.word).lower())
-                    await message.channel.send(f"Added `{' '.join(args.word).lower()}` to tracker")
-                elif args.subcmd == "remove":
-                    if not (message.author.guild_permissions.administrator or message.author.id == 644052617500164097):
-                        await message.channel.send("**You are not an admin or 7d**")
-                        return
-                    tools.tracked_remove_word(' '.join(args.word).lower())
-                    await message.channel.send(f"Removed `{' '.join(args.word).lower()}` from tracker")
-                elif args.subcmd == "viewuser":
-                    if args.user is not None:
-                        id_ = await tools.get_user_id(args.user, client)
-                        if id_ is None:
-                            await message.channel.send("**:x: User not found**")
-                            return
-                    stats = tools.tracked_user_stats(id_)
-                    user = await client.fetch_user(id_)
-                    embed = discord.Embed(title="Tracking stats", description="\n".join(f"{word}: {count}" for word, count in stats.items()))
-                    embed.set_author(name=await tools.fullname_from_id(id_, client), icon_url=user.avatar_url)
-                    await message.channel.send(embed=embed)
-                elif args.subcmd == "viewword":
-                    stats = tools.tracked_word_stats(' '.join(args.word).lower())
-                    desc = []
-                    for id_, count in stats.items():
-                        desc.append(f"{await tools.fullname_from_id(id_, client)}: {count}")
-                    embed = discord.Embed(title="Tracking stats", description="\n".join(desc))
-                    embed.set_author(name=' '.join(args.word).lower())
-                    await message.channel.send(embed=embed)
-                elif args.subcmd == "list":
-                    words = tools.tracked_get_words()
-                    embed = discord.Embed(title="List of tracked words", description="\n".join(words))
-                    await message.channel.send(embed=embed)
-                else:
-                    pass'''
 
     except:
         if "SystemExit: 0" in traceback.format_exc(): pass

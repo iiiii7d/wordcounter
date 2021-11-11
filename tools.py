@@ -2,7 +2,6 @@ import difflib
 import math
 import re
 import json
-import random
 import time
 
 def ms_to_time(ms):
@@ -30,11 +29,26 @@ def ms_to_time(ms):
 def dedent(text):
     return re.sub('\n ', '\n', re.sub(' +', ' ', text))
 
+def get_word_timing(word):
+    with open("data/times.json", 'r+') as f:
+        data = json.load(f)
+        if word in data.keys(): return data[word]
+        else: return None
+
+def update_word_timing(word):
+    with open("data/times.json", 'r+') as f:
+        data = json.load(f)
+        data[word] = int(time.time())
+        f.seek(0)
+        f.truncate()
+        json.dump(data, f, indent=4)
+
 def tracked_add(id_, word, count):
     with open("data/tracked_words.json", 'r+') as f:
         data = json.load(f)
         if str(id_) not in data[word].keys(): data[word][str(id_)] = 0
         data[word][str(id_)] += count
+        update_word_timing(word)
         f.seek(0)
         f.truncate()
         json.dump(data, f, indent=4)
@@ -75,16 +89,6 @@ def tracked_remove_word(word):
         f.truncate()
         json.dump(data, f, indent=4)
 
-async def get_user_id(text, client):
-    if res := re.search(r"^<@!?(\d+)>$", text):
-        return int(res.group(1))
-    elif text.isdigit():
-        return int(text)
-    else:
-        #member = await discord.utils.get(client.get_all_members(), name=text)
-        #return member.id
-        return None
-
 async def fullname_from_id(id_, client):
     user = await client.fetch_user(id_)
     return user.name+"#"+user.discriminator
@@ -106,7 +110,7 @@ def scan_content_for_tracker(id_, text):
                 yield ' '.join(l[i:i + n])
 
         for text_word in chunk(text.split(), word.count(' ')+1):
-            if (difflib.SequenceMatcher(None, text_word, word).ratio() > 0.75 or \
+            if (difflib.SequenceMatcher(None, text_word, word).ratio() > 0.75 or
                difflib.SequenceMatcher(None, word, text_word).ratio() > 0.75) and \
                text_word != word:
                 tracked_add(id_, word, 1)
