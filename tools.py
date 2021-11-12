@@ -32,13 +32,13 @@ def dedent(text):
 def get_word_timing(word):
     with open("data/times.json", 'r+') as f:
         data = json.load(f)
-        if word in data.keys(): return data[word]
+        if word in data.keys(): return tuple(data[word])
         else: return None
 
-def update_word_timing(word):
+def update_word_timing(word, id_):
     with open("data/times.json", 'r+') as f:
         data = json.load(f)
-        data[word] = int(time.time())
+        data[word] = [int(time.time()), id_]
         f.seek(0)
         f.truncate()
         json.dump(data, f, indent=4)
@@ -48,7 +48,7 @@ def tracked_add(id_, word, count):
         data = json.load(f)
         if str(id_) not in data[word].keys(): data[word][str(id_)] = 0
         data[word][str(id_)] += count
-        update_word_timing(word)
+        update_word_timing(word, id_)
         f.seek(0)
         f.truncate()
         json.dump(data, f, indent=4)

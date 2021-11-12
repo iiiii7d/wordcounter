@@ -1,4 +1,4 @@
-VERSION = "v21.0 (11/11/21)"
+VERSION = "v21.1 (12/11/21)"
 PREFIX = ","
 import time
 initstart = int(round(time.time() * 1000))
@@ -8,6 +8,7 @@ from discord.ext import commands
 import os
 import traceback
 from typing import Optional
+import json
 
 import tools
 import keep_alive
@@ -61,10 +62,10 @@ async def help_(ctx, *args):
 @admin_only()
 async def eval_(ctx, *, exp):
     try:
-        await ctx.send(f"`{await eval(' '.join(exp))}`")
+        await ctx.send(f"`{await eval(exp)}`")
     except:
         try:
-            await ctx.send(f"`{eval(' '.join(exp))}`")
+            await ctx.send(f"`{eval(exp)}`")
         except:
             try: await ctx.send("```"+traceback.format_exc()+"```")
             except: print(traceback.format_exc())
@@ -124,7 +125,8 @@ async def viewword(ctx, *, word):
     for id_, count in stats.items():
         desc.append(f"{await tools.fullname_from_id(id_, bot)}: {count}")
     embed = discord.Embed(title="Tracking stats", description="\n".join(desc))
-    embed.add_field(name="Last mentioned", value=f"<t:{tools.get_word_timing(word)}:f>, <t:{tools.get_word_timing(word)}:R>")
+    timestamp, id_ = tools.get_word_timing(word)
+    embed.add_field(name="Last mentioned", value=f"<t:{timestamp}:f>, <t:{timestamp}:R> by {await tools.fullname_from_id(id_, bot)})")
     embed.set_author(name=word.lower())
     await ctx.send(embed=embed)
 @viewword.error
@@ -136,10 +138,42 @@ async def list_(ctx):
     words = tools.tracked_get_words()
     description = ""
     for word in words:
-        description += f"**{word}** (last mentioned <t:{tools.get_word_timing(word)}:f>, <t:{tools.get_word_timing(word)}:R>)\n"
+        timestamp, id_ = tools.get_word_timing(word)
+        description += f"**{word}** (last mentioned <t:{timestamp}:f>, <t:{timestamp}:R> by {await tools.fullname_from_id(id_, bot)})\n"
     embed = discord.Embed(title="List of tracked words", description=description)
     await ctx.send(embed=embed)
 @list_.error
+async def handle_error(ctx, error):
+    await ctx.send(error, embed=help_embed('list', PREFIX))
+
+@bot.command()
+@admin_only()
+async def rescan(ctx):
+    await ctx.send("**This operation will take very long to complete, please be patient...**")
+    with open("data/tracked_words.json", 'r+') as f:
+        data = json.load(f)
+        new = {}
+        for word in data.keys():
+            new[word] = {}
+        f.seek(0)
+        f.truncate()
+        json.dump(new, f, indent=4)
+    with open("data/times.json", 'r+') as f:
+        _ = json.load(f)
+        f.seek(0)
+        f.truncate()
+        json.dump({}, f, indent=4)
+    await ctx.send("History cleared")
+
+    for channel in ctx.guild.text_channels:
+        await ctx.send(f"Retrieving messages in {channel.name}")
+        msgs = await channel.history(limit=float('inf')).flatten()
+        await ctx.send(f"Scanning {channel.name} ({len(msgs)} messages)")
+        for msg in msgs:
+            tools.scan_content_for_tracker(msg.author.id, msg.content)
+    await ctx.send("Rescan complete!")
+
+@rescan.error
 async def handle_error(ctx, error):
     await ctx.send(error, embed=help_embed('list', PREFIX))
 

@@ -31,6 +31,10 @@ def help_embed(command, prefix):
     elif command == "list":
         embed = discord.Embed(title=f"{command}", description="View a list of tracked words")
         embed.add_field(name="Example", value=f"`;{command}`", inline=False)
+    elif command == "rescan":
+        embed = discord.Embed(title=f"{command}", description="Rescans the entire chat history for mentions of words")
+        embed.add_field(name="Example", value=f"`;{command}`", inline=False)
+        embed.add_field(name="Permissions", value="Administrator, or be 7d")
     else:
         embed = discord.Embed(title="Wordcounter", description=f"Prefix: `{prefix}`")
         embed.add_field(name="Bot-related", value="info, ping, help")
